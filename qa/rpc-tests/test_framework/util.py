@@ -381,6 +381,9 @@ def stop_node(node, i):
     assert_equal(return_code, 0)
     del dogecoind_processes[i]
 
+def wait_for_node_exit(node_index, timeout):
+    dogecoind_processes[node_index].wait(timeout)
+
 def stop_nodes(nodes):
     for i, node in enumerate(nodes):
         stop_node(node, i)

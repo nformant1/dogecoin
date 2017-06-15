@@ -188,6 +188,7 @@ if ENABLE_ZMQ:
 testScriptsExt = [
     'pruning.py',
     # vv Tests less than 20m vv
+    'dbcrash.py',
     'smartfees.py',
     # vv Tests less than 5m vv
     'maxuploadtarget.py',
