@@ -8,6 +8,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 from test_framework.script import *
 from test_framework.mininode import *
+import logging
 import random
 try:
     import http.client as httplib
@@ -46,6 +47,7 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
         super().__init__()
         self.num_nodes = 4
         self.setup_clean_chain = False
+        self.log = logging.getLogger("ChainstateWriteCrashTest")
 
         # Set -maxmempool=0 to turn off mempool memory sharing with dbcache
         # Set -rpcservertimeout=900 to reduce socket disconnects in this
@@ -67,7 +69,8 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
         self.crashed_on_restart = 0     # Track count of crashes during recovery
 
     def setup_network(self):
-        self.setup_nodes()
+        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, self.extra_args)
+        self.is_network_split = False
         # Leave them unconnected, we'll use submitblock directly in this test
 
     # Starts up a given node id, waits for the tip to reach the given block
@@ -80,7 +83,7 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
         while time.time() - time_start < 60:
             try:
                 # Any of these RPC calls could throw due to node crash
-                self.nodes[node_index] = self.start_node(node_index, self.options.tmpdir, self.extra_args[node_index])
+                self.nodes[node_index] = start_node(node_index, self.options.tmpdir, self.extra_args[node_index])
                 self.nodes[node_index].waitforblock(expected_tip)
                 utxo_hash = self.nodes[node_index].gettxoutsetinfo()['hash_serialized_2']
                 return utxo_hash
@@ -177,7 +180,8 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
 
 
     def generate_small_transactions(self, node, count, utxo_list):
-        FEE = 1000 # TODO: replace this with node relay fee based calculation
+        # Dogecoin: pay enough to clear -blockmintxfee (0.01 DOGE/kB) for a ~400 byte tx
+        FEE = COIN // 100
         num_transactions = 0
         random.shuffle(utxo_list)
         while len(utxo_list) >= 2 and num_transactions < count:
@@ -205,7 +209,7 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
 
         # Start by creating a lot of utxos on node3
         initial_height = self.nodes[3].getblockcount()
-        utxo_list = create_confirmed_utxos(self.nodes[3].getnetworkinfo()['relayfee'], self.nodes[3], 5000)
+        utxo_list = create_confirmed_utxos(Decimal('0.01'), self.nodes[3], 5000)
         self.log.info("Prepped %d utxo entries", len(utxo_list))
 
         # Sync these blocks with the other nodes
